@@ -1,0 +1,142 @@
+Sub Прайс_Прусакова()
+    
+    Dim i As Long
+    Dim lastRow As Long
+    Dim valB As String
+    Dim valB_Original As String
+    Dim valC As Variant
+    
+    ' ===== Цвета (через переменные, а не Const) =====
+    Dim COLOR_GREEN As Long
+    Dim COLOR_YELLOW As Long
+    
+    COLOR_GREEN = RGB(144, 238, 144)   ' Светло-зелёный
+    COLOR_YELLOW = RGB(255, 255, 153)  ' Светло-жёлтый
+    
+    ' Отключаем обновление экрана для скорости
+    Application.ScreenUpdating = False
+    
+    ' ===== Проверка на пустой лист =====
+    If Application.WorksheetFunction.CountA(ActiveSheet.Cells) = 0 Then
+        MsgBox "Лист пуст! Операция отменена.", vbExclamation, "Ошибка"
+        Application.ScreenUpdating = True
+        Exit Sub
+    End If
+    
+    ' Находим последнюю строку в столбце B
+    lastRow = Cells(Rows.Count, 2).End(xlUp).Row
+    
+    ' Проходим по всем строкам
+    For i = 1 To lastRow
+        valB = LCase(Cells(i, 2).Value)
+        valB_Original = Cells(i, 2).Value
+        valC = Cells(i, 3).Value
+        
+        ' ===== УСЛОВИЕ 1: Проверяем исключения в столбце C =====
+        If IsEmpty(valC) Or valC = "" Then
+            GoTo NextRow
+        End If
+        
+        If CStr(valC) = "21261016" Or CStr(valC) = "00175" Or CStr(valC) = "175" Then
+            GoTo NextRow
+        End If
+        
+        ' ============================================================
+        ' ИСКЛЮЧЕНИЯ (не выделять)
+        ' ============================================================
+        ' "бест диннер монопротеин" — не новинка
+        If InStr(valB, "бест диннер монопротеин") > 0 Or InStr(valB, "бест диннер") > 0 Then
+            GoTo NextRow
+        End If
+        
+        ' "УПАК" — ложное срабатывание на "АК"
+        If InStr(valB_Original, "УПАК") > 0 Then
+            GoTo NextRow
+        End If
+        
+        ' ============================================================
+        ' НОВЫЕ БРЕНДЫ (зелёный)
+        ' ============================================================
+        If InStr(valB, "монопротеин стерил") > 0 Then
+            Cells(i, 2).Interior.Color = COLOR_GREEN
+            GoTo NextRow
+        End If
+        
+        If InStr(valB, "оптином") > 0 Then
+            Cells(i, 2).Interior.Color = COLOR_GREEN
+            GoTo NextRow
+        End If
+        
+        If InStr(valB, "прошейп") > 0 Or InStr(valB, "про шейп") > 0 Then
+            Cells(i, 2).Interior.Color = COLOR_GREEN
+            GoTo NextRow
+        End If
+        
+        ' ============================================================
+        ' АКЦИИ (жёлтый)
+        ' ============================================================
+        ' "акция" в любом регистре
+        If InStr(valB, "акция") > 0 Or InStr(LCase(Cells(i, 3).Value), "акция") > 0 Then
+            Cells(i, 2).Interior.Color = COLOR_YELLOW
+            GoTo NextRow
+        End If
+        
+        ' "АКЦ" только заглавными
+        If InStr(valB_Original, "АКЦ") > 0 Then
+            Cells(i, 2).Interior.Color = COLOR_YELLOW
+            GoTo NextRow
+        End If
+        
+        ' "АК " только заглавными (с пробелом в конце)
+        If InStr(valB_Original, "АК ") > 0 And InStr(valB_Original, "АКЦ") = 0 Then
+            Cells(i, 2).Interior.Color = COLOR_YELLOW
+            GoTo NextRow
+        End If
+        
+NextRow:
+    Next i
+    
+    ' ============================================================
+    ' СОХРАНЕНИЕ ФАЙЛА КАК "Прайс_ЗооЛогистик.xls"
+    ' ============================================================
+    
+    Dim filePath As String
+    Dim filePathWithDate As String
+    
+    ' Получаем путь к папке, где находится текущий файл
+    filePath = ActiveWorkbook.Path
+    
+    ' Если файл ещё не сохранён (нет пути) — сохраняем в папку "Документы"
+    If filePath = "" Then
+        filePath = CreateObject("WScript.Shell").SpecialFolders("MyDocuments")
+    End If
+    
+    ' Формируем полный путь с именем файла
+    filePathWithDate = filePath & Application.PathSeparator & "Прайс_ЗооЛогистик.xls"
+    
+    ' Проверяем, существует ли файл с таким именем
+    On Error Resume Next
+    If Dir(filePathWithDate) <> "" Then
+        ' Если файл существует — удаляем его (перезаписываем)
+        Kill filePathWithDate
+    End If
+    On Error GoTo 0
+    
+    ' Сохраняем файл в формате Excel 97-2003 (.xls)
+    On Error Resume Next
+    Application.DisplayAlerts = False
+    ActiveWorkbook.SaveAs Filename:=filePathWithDate, FileFormat:=xlExcel8, CreateBackup:=False
+    Application.DisplayAlerts = True
+    On Error GoTo 0
+    
+    Application.ScreenUpdating = True
+    
+    ' ============================================================
+    ' УВЕДОМЛЕНИЕ И ЗАКРЫТИЕ ТОЛЬКО ТЕКУЩЕЙ КНИГИ
+    ' ============================================================
+    MsgBox "Файл сохранён как:" & vbCrLf & filePathWithDate, vbInformation, "Сохранено"
+    
+    ' Закрываем только текущую книгу (Excel остаётся открытым)
+    ActiveWorkbook.Close SaveChanges:=False
+
+End Sub
